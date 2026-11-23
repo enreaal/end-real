@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Kamera · Salam Perpisahan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+    a-scene { position: fixed; inset: 0; }
+    .ui { position: fixed; z-index: 10; }
+    .bar { left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: center; padding: 20px 16px; pointer-events: none; }
+    .bar > * { pointer-events: auto; }
+    .hint { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font: 700 14px/1 var(--font-body); color: var(--color-ink); box-shadow: 0 6px 18px rgba(43,34,48,.18); }
+    .hint i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); animation: pulse 1.4s ease-in-out infinite; }
+    .hint.found i { background: #2fbf71; animation: none; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+    .close { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.92); display: grid; place-items: center; color: var(--color-ink); box-shadow: 0 6px 18px rgba(43,34,48,.18); }
+    .close svg { width: 16px; height: 16px; }
+    .bottom { left: 0; right: 0; bottom: 0; padding: 24px; max-width: 480px; margin: 0 auto; transition: transform .35s ease, opacity .35s ease; }
+    .bottom.hide { transform: translateY(120%); opacity: 0; pointer-events: none; }
+
+    /* Scan frame shown while searching */
+    .scan { inset: 0; display: grid; place-items: center; pointer-events: none; transition: opacity .3s; }
+    .scan.hide { opacity: 0; }
+    .scan-box { position: relative; width: min(64vw, 300px); aspect-ratio: 1; }
+    .scan-box span { position: absolute; width: 34px; height: 34px; border: 0 solid #fff; border-radius: 6px; }
+    .scan-box span:nth-child(1) { left: 0; top: 0; border-top-width: 4px; border-left-width: 4px; }
+    .scan-box span:nth-child(2) { right: 0; top: 0; border-top-width: 4px; border-right-width: 4px; }
+    .scan-box span:nth-child(3) { left: 0; bottom: 0; border-bottom-width: 4px; border-left-width: 4px; }
+    .scan-box span:nth-child(4) { right: 0; bottom: 0; border-bottom-width: 4px; border-right-width: 4px; }
+    .scan-box { animation: breathe 2.2s ease-in-out infinite; }
+    @keyframes breathe { 0%,100% { scale: 1; } 50% { scale: .94; } }
+
+    /* Full-screen panels: loading, error, letter sheet */
+    .panel { inset: 0; z-index: 20; background: var(--color-ground); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 24px; gap: 12px; }
+    .panel[hidden] { display: none; }
+    .panel .av { width: 180px; }
+    .panel h2 { font: 600 30px/1.1 var(--font-display); color: var(--color-ink); }
+    .panel p { color: var(--color-muted); line-height: 1.5; max-width: 320px; }
+    .panel .btn { max-width: 340px; margin-top: 12px; }
+    .dots { display: inline-flex; gap: 6px; margin-top: 8px; }
+    .dots b { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); animation: bounce 1s ease-in-out infinite; }
+    .dots b:nth-child(2) { animation-delay: .15s; } .dots b:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce { 0%,100% { transform: translateY(0); opacity: .5; } 50% { transform: translateY(-6px); opacity: 1; } }
+
+    .sheet { inset: 0; z-index: 30; background: rgba(43,34,48,.45); display: flex; align-items: flex-end; justify-content: center; }
+    .sheet[hidden] { display: none; }
+    .sheet-in { width: 100%; max-width: 480px; max-height: 92svh; overflow: auto; background: var(--color-ground); border-radius: 28px 28px 0 0; padding: 20px 20px 28px; animation: up .35s ease-out; }
+    .sheet-in .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--color-line); margin: 0 auto 16px; }
+    .sheet-in .row { display: flex; align-items: flex-end; gap: 4px; margin-bottom: -8px; }
+    .sheet-in .row .av { width: 110px; flex: none; }
+    .sheet-in .row p { font: 600 22px/1.1 var(--font-hand); color: var(--color-accent); padding-bottom: 28px; }
+    .sheet-in .letter { position: relative; z-index: 1; }
+    .sheet-in .btn { margin-top: 20px; }
+    @keyframes up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 25; width: 100%; height: 100%; }
+    /* MindAR's own overlays are replaced by ours */
+    .mindar-ui-overlay { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="ui bar">
+    <div class="hint" id="hint"><i></i><span id="hint-text">Arahkan ke foto di kartumu</span></div>
+    <a class="close" id="close" href="index.html" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
+  </div>
+  <div class="ui scan" id="scan"><div class="scan-box"><span></span><span></span><span></span><span></span></div></div>
+  <div class="ui bottom hide" id="bottom"><button class="btn" id="open-letter">Baca surat lengkap</button></div>
+
+  <div class="ui panel" id="loading">
+    <div class="av"><img src="assets/me.png" alt=""></div>
+    <h2>Siapin kamera dulu…</h2>
+    <p>Kalau muncul pertanyaan, pilih <b>Izinkan</b> untuk akses kamera.</p>
+    <div class="dots"><b></b><b></b><b></b></div>
+  </div>
+
+  <div class="ui panel" id="error" hidden>
+    <div class="av"><img src="assets/me.png" alt=""></div>
+    <h2 id="error-title">Kamera belum bisa dibuka</h2>
+    <p id="error-text">Coba izinkan akses kamera di pengaturan browser, lalu muat ulang halaman ini.</p>
+    <button class="btn" onclick="location.reload()">Coba lagi</button>
+    <a class="btn ghost" id="error-read" href="index.html">Baca tanpa kamera</a>
+  </div>
+
+  <div class="ui sheet" id="sheet" hidden>
+    <div class="sheet-in">
+      <div class="grab"></div>
+      <div class="row"><div class="av"><img src="assets/me.png" alt=""></div><p id="sheet-hi">buat kamu</p></div>
+      <article class="letter">
+        <div class="letter-top"><span>surat kecil</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0c.9 6.4 5.6 11.1 12 12-6.4.9-11.1 5.6-12 12-.9-6.4-5.6-11.1-12-12C6.4 11.1 11.1 6.4 12 0z"/></svg></div>
+        <div class="letter-body">
+          <p class="letter-greet" id="sheet-greet"></p>
+          <p class="letter-msg" id="sheet-msg"></p>
+          <p class="letter-sign" id="sheet-sign"></p>
+        </div>
+      </article>
+      <button class="btn ghost" id="close-letter">Kembali ke kamera</button>
+    </div>
+  </div>
+
+  <a-scene id="scene"
+    mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.0001; filterBeta: 0.001"
+    color-space="sRGB" renderer="colorManagement: true; physicallyCorrectLights: false; antialias: true; alpha: true"
+    vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" embedded>
+    <a-assets id="assets" timeout="20000"></a-assets>
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  </a-scene>
+
+  <script src="data.js"></script>
+  <script src="confetti.js"></script>
+  <script>
+  (() => {
+    const data = window.FAREWELL;
+    const people = data.colleagues;
+    const wantedId = new URLSearchParams(location.search).get("c");
+    const $ = (id) => document.getElementById(id);
+    const firstName = (n) => String(n).trim().split(/\s+/)[0];
+
+    const C = {
+      ink: "#2b2230", muted: "#6f6880", line: "#dde4fb", accent: "#3971fb",
+      blob: "#c7d5fc", blobSoft: "#e6ecfe", tape: "#ffe08a", paper: "#ffffff",
+    };
+    const STAR = "M12 0c.9 6.4 5.6 11.1 12 12-6.4.9-11.1 5.6-12 12-.9-6.4-5.6-11.1-12-12C6.4 11.1 11.1 6.4 12 0z";
+
+    if (wantedId) $("close").href = "index.html?c=" + encodeURIComponent(wantedId);
+    $("error-read").href = wantedId ? "index.html?c=" + encodeURIComponent(wantedId) + "#surat" : "index.html";
+
+    function fail(title, text) {
+      $("loading").hidden = true;
+      $("error-title").textContent = title;
+      $("error-text").textContent = text;
+      $("error").hidden = false;
+    }
+
+    // ---------- canvas drawing helpers (textures for the 3D planes) ----------
+    const loadImg = (src) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+
+    function rr(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) return ctx.roundRect(x, y, w, h, r);
+      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+
+    function wrap(ctx, text, maxW) {
+      const lines = [];
+      for (const para of String(text).split("\n")) {
+        let line = "";
+        for (const word of para.split(/\s+/)) {
+          const test = line ? line + " " + word : word;
+          if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = word; } else line = test;
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+
+    function star(ctx, x, y, s, color) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(s / 24, s / 24); ctx.fillStyle = color; ctx.fill(new Path2D(STAR)); ctx.restore();
+    }
+
+    function letterCanvas(p) {
+      const W = 1000, pad = 64, S = 2;
+      const c = document.createElement("canvas"), ctx = c.getContext("2d");
+      ctx.font = `500 ${44}px Caveat`;
+      const lines = wrap(ctx, p.message, W - pad * 2);
+      const H = 96 + 40 + 70 + 20 + lines.length * 56 + 30 + 60 + 50;
+      c.width = W; c.height = H;
+      rr(ctx, 0, 0, W, H, 48); ctx.fillStyle = C.paper; ctx.fill();
+      ctx.save(); rr(ctx, 0, 0, W, H, 48); ctx.clip();
+      ctx.fillStyle = C.blobSoft; ctx.fillRect(0, 0, W, 96); ctx.restore();
+      ctx.lineWidth = 6; ctx.strokeStyle = C.line; rr(ctx, 3, 3, W - 6, H - 6, 46); ctx.stroke();
+      ctx.fillStyle = C.accent; ctx.font = "800 26px Nunito"; ctx.textBaseline = "middle";
+      ctx.fillText("S U R A T   K E C I L", pad, 49);
+      star(ctx, W - pad - 32, 33, 32, C.accent);
+      ctx.textBaseline = "alphabetic";
+      let y = 96 + 40 + 56;
+      ctx.fillStyle = C.ink; ctx.font = "600 64px Fredoka";
+      ctx.fillText(`Untuk ${firstName(p.name)},`, pad, y);
+      y += 20;
+      ctx.font = "500 44px Caveat";
+      for (const l of lines) { y += 56; ctx.fillText(l, pad, y); }
+      y += 30 + 48;
+      ctx.fillStyle = C.accent; ctx.font = "600 52px Caveat"; ctx.textAlign = "right";
+      ctx.fillText(`— ${data.from}`, W - pad, y);
+      return c;
+    }
+
+    async function polaroidCanvas(src, caption, tilt) {
+      const img = await loadImg(src);
+      const W = 520, pad = 28, imgW = W - pad * 2, H = pad + imgW + 100;
+      const c = document.createElement("canvas"); c.width = W + 40; c.height = H + 60;
+      const ctx = c.getContext("2d");
+      ctx.translate(20, 40);
+      rr(ctx, 0, 0, W, H, 30); ctx.fillStyle = C.paper; ctx.fill();
+      ctx.lineWidth = 6; ctx.strokeStyle = C.line; ctx.stroke();
+      // cover-crop into the square
+      const s = Math.max(imgW / img.width, imgW / img.height);
+      const sw = imgW / s, sh = imgW / s;
+      ctx.save(); rr(ctx, pad, pad, imgW, imgW, 18); ctx.clip();
+      ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, pad, pad, imgW, imgW); ctx.restore();
+      ctx.fillStyle = C.ink; ctx.font = "600 58px Caveat"; ctx.textAlign = "center";
+      ctx.fillText(caption, W / 2, pad + imgW + 70);
+      ctx.save(); ctx.translate(W / 2, -6); ctx.rotate(-0.05); ctx.globalAlpha = .92; ctx.fillStyle = C.tape;
+      rr(ctx, -90, -24, 180, 52, 8); ctx.fill(); ctx.restore();
+      return c;
+    }
+
+    function starCanvas(color) {
+      const c = document.createElement("canvas"); c.width = c.height = 128;
+      star(c.getContext("2d"), 0, 0, 128, color); return c;
+    }
+
+    // Turn a canvas into an <img> in <a-assets> and return "#id".
+    let assetN = 0;
+    function addAsset(src) {
+      const img = document.createElement("img");
+      img.id = "tex" + (assetN++);
+      img.src = typeof src === "string" ? src : src.toDataURL("image/png");
+      $("assets").appendChild(img);
+      return "#" + img.id;
+    }
+
+    function plane(parent, src, w, h, pos, rotZ = 0, extra = {}) {
+      const e = document.createElement("a-image");
+      e.setAttribute("src", src);
+      e.setAttribute("width", w);
+      e.setAttribute("height", h);
+      e.setAttribute("position", pos);
+      e.setAttribute("rotation", `0 0 ${rotZ}`);
+      e.setAttribute("material", "transparent: true; alphaTest: 0.01; shader: flat");
+      e.setAttribute("scale", "0.001 0.001 0.001");
+      for (const [k, v] of Object.entries(extra)) e.setAttribute(k, v);
+      parent.appendChild(e);
+      return e;
+    }
+
+    // Pop-in animation when the card is found; a slow bob afterwards.
+    function popIn(e, delay, bob) {
+      e.setAttribute("animation__pop", `property: scale; from: 0.001 0.001 0.001; to: 1 1 1; dur: 600; delay: ${delay}; easing: easeOutBack; startEvents: show`);
+      e.setAttribute("animation__hide", `property: scale; to: 0.001 0.001 0.001; dur: 1; startEvents: hide`);
+      if (bob) {
+        const p = e.getAttribute("position");
+        e.setAttribute("animation__bob", `property: position; from: ${p.x} ${p.y} ${p.z}; to: ${p.x} ${p.y + bob} ${p.z}; dir: alternate; loop: true; dur: 2200; easing: easeInOutSine`);
+      }
+    }
+
+    // ---------- build one target per colleague, in data.js order ----------
+    async function build() {
+      const scene = $("scene");
+      const avatar = addAsset("assets/me.png");
+      const starBlue = addAsset(starCanvas(C.accent));
+      const starSoft = addAsset(starCanvas(C.blob));
+
+      for (let i = 0; i < people.length; i++) {
+        const p = people[i];
+        const t = document.createElement("a-entity");
+        t.setAttribute("mindar-image-target", `targetIndex: ${i}`);
+        t.dataset.index = i;
+
+        const items = [];
+        // Letter floats above the card photo (target is 1 unit wide).
+        const lc = letterCanvas(p);
+        const lw = 1.25, lh = lw * lc.height / lc.width;
+        items.push([plane(t, addAsset(lc), lw, lh, `0 ${0.5 + lh / 2 + 0.08} 0.12`, 2), 150, 0.02]);
+
+        // Extra photos as polaroids on the sides.
+        const photos = (p.photos || []).slice(0, 3);
+        const spots = [["-0.78 0.18 0.06", 8], ["0.8 0.35 0.08", -7], ["-0.72 -0.5 0.1", -5]];
+        for (let k = 0; k < photos.length; k++) {
+          try {
+            const pc = await polaroidCanvas(photos[k], k === 0 ? "kenangan" : "kita", spots[k][1]);
+            const pw = 0.55;
+            items.push([plane(t, addAsset(pc), pw, pw * pc.height / pc.width, spots[k][0], spots[k][1]), 350 + k * 120, 0.025]);
+          } catch (e) { console.warn("Foto gagal dimuat:", photos[k]); }
+        }
+
+        // Avatar sticker sits at the bottom-right corner of the card.
+        items.push([plane(t, avatar, 0.62, 0.62, "0.62 -0.52 0.16", 0), 500, 0.03]);
+
+        // Sparkles.
+        const sp = [[starBlue, 0.14, "-0.55 0.72 0.2"], [starSoft, 0.1, "0.6 0.95 0.2"], [starBlue, 0.08, "0.2 -0.62 0.2"], [starSoft, 0.12, "-0.35 -0.75 0.18"]];
+        for (const [src, s, pos] of sp) {
+          const e = plane(t, src, s, s, pos);
+          items.push([e, 650, 0.04]);
+          e.setAttribute("animation__spin", "property: rotation; to: 0 0 360; loop: true; dur: 9000; easing: linear");
+        }
+
+        for (const [e, delay, bob] of items) popIn(e, delay, bob);
+
+        t.addEventListener("targetFound", () => onFound(i, items));
+        t.addEventListener("targetLost", () => onLost(i, items));
+        scene.appendChild(t);
+      }
+    }
+
+    // ---------- tracking events ----------
+    let current = null;
+    const celebrated = new Set();
+
+    function onFound(i, items) {
+      current = people[i];
+      items.forEach(([e]) => e.emit("show"));
+      $("hint").classList.add("found");
+      $("hint-text").textContent = `Kartu ${firstName(current.name)} ditemukan`;
+      $("scan").classList.add("hide");
+      $("open-letter").textContent = `Baca surat untuk ${firstName(current.name)}`;
+      $("bottom").classList.remove("hide");
+      if (!celebrated.has(i)) { celebrated.add(i); Confetti.burst(90); if (navigator.vibrate) navigator.vibrate(40); }
+    }
+
+    function onLost(i, items) {
+      items.forEach(([e]) => e.emit("hide"));
+      $("hint").classList.remove("found");
+      $("hint-text").textContent = "Arahkan ke foto di kartumu";
+      $("scan").classList.remove("hide");
+      // keep the letter button for the last card found
+    }
+
+    function openLetter() {
+      const p = current || people.find((c) => c.id === wantedId);
+      if (!p) return;
+      $("sheet-hi").textContent = `buat ${firstName(p.name)}`;
+      $("sheet-greet").textContent = `Untuk ${firstName(p.name)},`;
+      $("sheet-msg").textContent = p.message;
+      $("sheet-sign").textContent = `— ${data.from}`;
+      $("sheet").hidden = false;
+      Confetti.burst();
+    }
+    $("open-letter").addEventListener("click", openLetter);
+    $("close-letter").addEventListener("click", () => ($("sheet").hidden = true));
+    $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") $("sheet").hidden = true; });
+
+    // ---------- start ----------
+    async function start() {
+      if (!window.isSecureContext) {
+        return fail("Butuh alamat https", "Kamera hanya bisa dibuka lewat https:// (atau localhost). Buka situs dari alamat yang sudah di-deploy.");
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        return fail("Browser belum mendukung", "Coba buka pakai Chrome (Android) atau Safari (iPhone).");
+      }
+      try {
+        const r = await fetch("assets/targets.mind", { method: "HEAD", cache: "no-store" });
+        if (!r.ok) throw new Error(r.status);
+      } catch (e) {
+        return fail("File targets.mind belum ada", "Buka compile.html, buat file-nya, lalu simpan sebagai assets/targets.mind.");
+      }
+
+      try { await document.fonts.ready; await Promise.all(["600 64px Fredoka", "500 44px Caveat", "800 26px Nunito"].map((f) => document.fonts.load(f))); } catch (e) {}
+      await build();
+
+      const scene = $("scene");
+      const go = () => {
+        const sys = scene.systems["mindar-image-system"];
+        scene.addEventListener("arReady", () => { $("loading").hidden = true; }, { once: true });
+        scene.addEventListener("arError", () => fail("Kamera belum bisa dibuka", "Coba izinkan akses kamera di pengaturan browser, lalu muat ulang halaman ini."), { once: true });
+        sys.start();
+      };
+      if (scene.hasLoaded) go(); else scene.addEventListener("loaded", go, { once: true });
+    }
+
+    start();
+  })();
+  </script>
+</body>
+</html>

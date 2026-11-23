@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Salam Perpisahan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { max-width: 440px; margin: 0 auto; padding: 24px 24px 32px; min-height: 100svh; display: flex; flex-direction: column; position: relative; z-index: 1; }
+    .top { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--color-muted); }
+    .collage { position: relative; height: 330px; margin: 8px -8px 0; }
+    .collage > * { position: absolute; }
+    .collage .av { width: 62%; left: 17%; top: 40px; z-index: 2; }
+    .collage .pol { width: 34%; }
+    .collage .pol.l { left: 3%; top: 156px; transform: rotate(-6deg); z-index: 3; }
+    .collage .pol.r { right: 3%; top: 22px; transform: rotate(5deg); z-index: 3; }
+    @keyframes drift { 0%,100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+    .collage .av, .collage .pol { animation: drift 5s ease-in-out infinite; }
+    .collage .pol.l { animation-delay: -2s; } .collage .pol.r { animation-delay: -3.5s; }
+    .hi { font: 600 26px/1 var(--font-hand); color: var(--color-accent); margin-top: 16px; }
+    h1 { font: 600 clamp(44px, 14vw, 56px)/1 var(--font-display); letter-spacing: -.01em; margin-top: 4px; }
+    h1 em { font-style: normal; color: var(--color-accent); }
+    .sub { color: var(--color-muted); line-height: 1.5; margin-top: 8px; }
+    .steps { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 12px; }
+    .steps li { display: flex; align-items: center; gap: 12px; line-height: 1.4; font-weight: 600; }
+    .steps b { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 600 16px/1 var(--font-display); color: var(--color-accent); background: var(--color-blob-soft); }
+    .actions { margin-top: auto; padding-top: 32px; display: grid; gap: 16px; }
+    #letter { display: none; margin-top: 32px; }
+    #letter.open { display: block; animation: rise .5s ease-out; }
+    .picker { display: grid; gap: 12px; margin-top: 32px; }
+    #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .collage .pol { animation: none; } }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+  <main id="app"></main>
+
+  <script src="data.js"></script>
+  <script src="confetti.js"></script>
+  <script>
+    const data = window.FAREWELL;
+    const app = document.getElementById("app");
+    const id = new URLSearchParams(location.search).get("c");
+    const person = data.colleagues.find((c) => c.id === id);
+    const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    const today = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, " · ");
+
+    const STAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0c.9 6.4 5.6 11.1 12 12-6.4.9-11.1 5.6-12 12-.9-6.4-5.6-11.1-12-12C6.4 11.1 11.1 6.4 12 0z"/></svg>`;
+    const SPARKLE = (pos, tone = "") => STAR.replace("<svg ", `<svg class="spk ${tone}" style="${pos}" `);
+
+    // Split "Rina Putri" -> "Rina <em>Putri</em>" for the serif/accent look.
+    const nameHtml = (n) => {
+      const parts = String(n).trim().split(/\s+/);
+      if (parts.length < 2) return esc(n);
+      const last = parts.pop();
+      return `${esc(parts.join(" "))} <em>${esc(last)}</em>`;
+    };
+
+    if (!person) {
+      app.innerHTML = `
+        <div class="top"><span>Salam perpisahan</span><span>${today}</span></div>
+        <p class="hi">hai,</p>
+        <h1>Kamu <em>siapa?</em></h1>
+        <p class="sub">Pilih namamu, atau langsung buka kamera dan arahkan ke kartumu.</p>
+        <div class="picker">
+          ${data.colleagues.map((c) => `<a class="btn ghost" href="?c=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join("")}
+        </div>
+        <div class="actions"><a class="btn" href="ar.html">Buka kamera</a></div>`;
+    } else {
+      const photos = person.photos || [];
+      const main = person.target;
+      app.innerHTML = `
+        <div class="top"><span>Salam perpisahan</span><span>${today}</span></div>
+        <div class="collage" aria-hidden="true">
+          <div class="av"><img src="assets/me.png" alt=""></div>
+          <figure class="pol l"><img src="${esc(main)}" alt=""><figcaption>kita</figcaption></figure>
+          ${photos[0] ? `<figure class="pol r"><img src="${esc(photos[0])}" alt=""><figcaption>kenangan</figcaption></figure>` : ""}
+          ${SPARKLE("left:10%;top:48px;width:38px;height:38px")}
+          ${SPARKLE("left:40%;top:12px;width:24px;height:24px", "soft")}
+          ${SPARKLE("right:12%;top:214px;width:14px;height:14px")}
+        </div>
+        <p class="hi">hai,</p>
+        <h1>${nameHtml(person.name)}</h1>
+        <p class="sub">${esc(person.intro || "Sedikit kenang-kenangan sebelum aku pamit.")}</p>
+        <ol class="steps">
+          <li><b>1</b>Ketuk Buka kamera, lalu izinkan akses</li>
+          <li><b>2</b>Arahkan kamera ke foto di kartumu</li>
+        </ol>
+        <div class="actions">
+          <a class="btn" href="ar.html?c=${encodeURIComponent(person.id)}">Buka kamera</a>
+          <button class="btn ghost" id="read">Baca tanpa kamera</button>
+        </div>
+        <article class="letter" id="letter">
+          <div class="letter-top"><span>surat kecil</span>${STAR}</div>
+          <div class="letter-body">
+            <p class="letter-greet">Untuk ${esc(person.name.split(" ")[0])},</p>
+            <p class="letter-msg">${esc(person.message)}</p>
+            <p class="letter-sign">— ${esc(data.from)}</p>
+          </div>
+        </article>`;
+
+      const letter = document.getElementById("letter");
+      document.getElementById("read").addEventListener("click", () => {
+        letter.classList.add("open");
+        letter.scrollIntoView({ behavior: "smooth", block: "start" });
+        Confetti.burst();
+      });
+      if (location.hash === "#surat") letter.classList.add("open");
+    }
+
+    Confetti.burst();
+  </script>
+</body>
+</html>
