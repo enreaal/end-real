@@ -70,7 +70,7 @@
         <div class="picker">
           ${data.colleagues.map((c) => `<a class="btn ghost" href="?c=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join("")}
         </div>
-        <div class="actions"><a class="btn" href="ar.html">Buka kamera</a></div>`;
+        <div class="actions"><a class="btn" href="qr.html">Buka kamera</a></div>`;
     } else {
       const photos = person.photos || [];
       const main = person.target;
@@ -89,10 +89,10 @@
         <p class="sub">${esc(person.intro || "Sedikit kenang-kenangan sebelum aku pamit.")}</p>
         <ol class="steps">
           <li><b>1</b>Ketuk Buka kamera, lalu izinkan akses</li>
-          <li><b>2</b>Arahkan kamera ke foto di kartumu</li>
+          <li><b>2</b>Arahkan kamera ke kode QR di kartumu</li>
         </ol>
         <div class="actions">
-          <a class="btn" href="ar.html?c=${encodeURIComponent(person.id)}">Buka kamera</a>
+          <a class="btn" href="qr.html?c=${encodeURIComponent(person.id)}">Buka kamera</a>
           <button class="btn ghost" id="read">Baca tanpa kamera</button>
         </div>
         <article class="letter" id="letter">
